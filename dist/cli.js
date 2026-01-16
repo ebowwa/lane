@@ -17,6 +17,7 @@ import { LaneManager } from "./ui/LaneManager.js";
 import { Settings } from "./ui/Settings.js";
 import { CheckoutSelector } from "./ui/CheckoutSelector.js";
 import { branchExists } from "./git.js";
+import { execSync } from "child_process";
 const program = new Command();
 // Magic prefix for shell function to detect cd commands
 const CD_PREFIX = "__lane_cd:";
@@ -309,13 +310,12 @@ program
         // Checkout branch in existing lane
         const lane = selectedAction.lane;
         try {
-            const { execSync } = await import("child_process");
             // Checkout the branch (create if doesn't exist)
             if (doesBranchExist) {
-                execSync(`git checkout "${branchName}"`, { cwd: lane.path, stdio: "pipe" });
+                execSync(`git checkout "${branchName}"`, { cwd: lane.path, encoding: "utf-8", stdio: "pipe" });
             }
             else {
-                execSync(`git checkout -b "${branchName}"`, { cwd: lane.path, stdio: "pipe" });
+                execSync(`git checkout -b "${branchName}"`, { cwd: lane.path, encoding: "utf-8", stdio: "pipe" });
             }
             console.log(chalk.green(`Checked out "${branchName}" in lane "${lane.name}"`));
             recordLaneSwitch(mainRoot, currentPath);

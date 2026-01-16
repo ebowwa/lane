@@ -9,7 +9,7 @@ export interface RemoveLaneResult {
     error?: string;
 }
 /**
- * Get the main repo root, even if we're in a worktree
+ * Get the main repo root, even if we're in a worktree or full-copy lane
  */
 export declare function getMainRepoRoot(cwd?: string): string | null;
 /**

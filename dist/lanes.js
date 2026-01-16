@@ -1,17 +1,31 @@
 import { execSync, spawn } from "child_process";
-import { existsSync, mkdirSync, copyFileSync, readdirSync, statSync, rmSync, } from "fs";
+import { existsSync, mkdirSync, copyFileSync, readdirSync, readFileSync, statSync, rmSync, writeFileSync, } from "fs";
 import path from "path";
 import { findGitRepo, getMainWorktree, isWorktree, getUntrackedFiles, createWorktree, branchExists, deleteBranch, getCurrentBranch, } from "./git.js";
 import { loadConfig, addLane, removeLane as removeLaneFromConfig, getLane, getAllLanes, BUILD_ARTIFACT_PATTERNS, } from "./config.js";
 /**
- * Get the main repo root, even if we're in a worktree
+ * Get the main repo root, even if we're in a worktree or full-copy lane
  */
 export function getMainRepoRoot(cwd = process.cwd()) {
+    // Check if we're in a worktree
     if (isWorktree(cwd)) {
         return getMainWorktree(cwd);
     }
     const repo = findGitRepo(cwd);
-    return repo?.root || null;
+    if (!repo)
+        return null;
+    // Check if this is a full-copy lane (has .lane-origin marker)
+    const originFile = path.join(repo.root, ".lane-origin");
+    if (existsSync(originFile)) {
+        try {
+            const mainRoot = readFileSync(originFile, "utf-8").trim();
+            if (existsSync(mainRoot)) {
+                return mainRoot;
+            }
+        }
+        catch { }
+    }
+    return repo.root;
 }
 /**
  * Generate the lane directory path
@@ -270,6 +284,8 @@ export async function createLane(laneName, options = {}) {
             }
             // Create and switch to branch
             execSync(`git checkout -B "${branchName}"`, { cwd: lanePath, stdio: "pipe" });
+            // Write marker file so we can find the main repo from the lane
+            writeFileSync(path.join(lanePath, ".lane-origin"), mainRoot);
             const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
             process.stderr.write(`\r✓ Copied repository in ${elapsed}s`.padEnd(60) + `\n`);
             // Run install if we skipped build artifacts
