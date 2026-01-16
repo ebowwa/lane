@@ -33,6 +33,16 @@ When you run `lane a`, it **creates the copy AND cd's you into it**:
 ~/my-app-lane-a $ git checkout -b experiment
 ```
 
+**Coworker sends you a branch?** Use `lane checkout`:
+
+```bash
+~/my-app $ lane checkout feature/anna-auth
+```
+
+If a lane already has that branch checked out, you'll switch to it. If not, you choose:
+- Create a new lane with that branch
+- Check it out in an existing lane
+
 **Easy cleanup.** Lanes are just folders. Delete them anytime:
 
 ```bash
