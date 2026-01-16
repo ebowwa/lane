@@ -10,10 +10,10 @@ Lane creates full copies of your repo in sibling directories:
 
 ```
 ~/projects/
-├── my-app/                  # Main repo
-├── my-app-lane-a/           # Lane "a"
-├── my-app-lane-b/           # Lane "b"
-├── my-app-lane-testing/     # Lane "testing"
+├── my-app/                  # Main repo (on main)
+├── my-app-lane-a/           # Lane "a" (on feature/login)
+├── my-app-lane-b/           # Lane "b" (on fix/bug-123)
+├── my-app-lane-testing/     # Lane "testing" (on main)
 ```
 
 When you run `lane a`, it **creates the copy AND cd's you into it**:
@@ -33,7 +33,14 @@ When you run `lane a`, it **creates the copy AND cd's you into it**:
 ~/my-app-lane-a $ git checkout -b experiment
 ```
 
-Each lane is completely independent. No symlinks, no worktree weirdness. Delete one without affecting others.
+**Easy cleanup.** Lanes are just folders. Delete them anytime:
+
+```bash
+lane remove a               # Delete lane "a"
+lane remove b --delete-branch   # Also delete the git branch
+```
+
+Or use the interactive picker (`lane`) to select and bulk-delete multiple lanes at once.
 
 ## Install
 
