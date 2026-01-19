@@ -25,6 +25,7 @@ import {
 } from "./git.js";
 import {
   loadConfig,
+  saveConfig,
   addLane,
   removeLane as removeLaneFromConfig,
   getLane,
@@ -819,6 +820,58 @@ export async function syncLane(
   );
 
   return { success: true, copiedFiles };
+}
+
+export interface RenameLaneResult {
+  success: boolean;
+  newPath?: string;
+  error?: string;
+}
+
+/**
+ * Rename a lane
+ */
+export async function renameLane(
+  oldName: string,
+  newName: string,
+  options: { cwd?: string } = {}
+): Promise<RenameLaneResult> {
+  const cwd = options.cwd || process.cwd();
+  const mainRoot = getMainRepoRoot(cwd);
+
+  if (!mainRoot) {
+    return { success: false, error: "Not in a git repository" };
+  }
+
+  const lane = getLane(mainRoot, oldName);
+  if (!lane) {
+    return { success: false, error: `Lane not found: ${oldName}` };
+  }
+
+  const newPath = getLanePath(mainRoot, newName);
+
+  // Check if new path already exists
+  if (existsSync(newPath)) {
+    return { success: false, error: `Path already exists: ${newPath}` };
+  }
+
+  // Rename the directory
+  try {
+    execSync(`mv "${lane.path}" "${newPath}"`, { stdio: "pipe" });
+  } catch (e: any) {
+    return { success: false, error: `Failed to rename directory: ${e.message}` };
+  }
+
+  // Update config
+  const config = loadConfig(mainRoot);
+  const laneConfig = config.lanes.find((l) => l.name === oldName);
+  if (laneConfig) {
+    laneConfig.name = newName;
+    laneConfig.path = newPath;
+    saveConfig(mainRoot, config);
+  }
+
+  return { success: true, newPath };
 }
 
 export interface SmartLaneResult {

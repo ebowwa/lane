@@ -2,7 +2,7 @@ import { execSync, spawn } from "child_process";
 import { existsSync, mkdirSync, copyFileSync, readdirSync, readFileSync, statSync, rmSync, writeFileSync, } from "fs";
 import path from "path";
 import { findGitRepo, getMainWorktree, isWorktree, getUntrackedFiles, createWorktree, branchExists, deleteBranch, getCurrentBranch, } from "./git.js";
-import { loadConfig, addLane, removeLane as removeLaneFromConfig, getLane, getAllLanes, BUILD_ARTIFACT_PATTERNS, } from "./config.js";
+import { loadConfig, saveConfig, addLane, removeLane as removeLaneFromConfig, getLane, getAllLanes, BUILD_ARTIFACT_PATTERNS, } from "./config.js";
 /**
  * Get the main repo root, even if we're in a worktree or full-copy lane
  */
@@ -623,6 +623,41 @@ export async function syncLane(laneName, options = {}) {
     // Copy untracked files from main to target
     const copiedFiles = copyUntrackedFiles(mainRoot, targetPath, config.settings.skipPatterns);
     return { success: true, copiedFiles };
+}
+/**
+ * Rename a lane
+ */
+export async function renameLane(oldName, newName, options = {}) {
+    const cwd = options.cwd || process.cwd();
+    const mainRoot = getMainRepoRoot(cwd);
+    if (!mainRoot) {
+        return { success: false, error: "Not in a git repository" };
+    }
+    const lane = getLane(mainRoot, oldName);
+    if (!lane) {
+        return { success: false, error: `Lane not found: ${oldName}` };
+    }
+    const newPath = getLanePath(mainRoot, newName);
+    // Check if new path already exists
+    if (existsSync(newPath)) {
+        return { success: false, error: `Path already exists: ${newPath}` };
+    }
+    // Rename the directory
+    try {
+        execSync(`mv "${lane.path}" "${newPath}"`, { stdio: "pipe" });
+    }
+    catch (e) {
+        return { success: false, error: `Failed to rename directory: ${e.message}` };
+    }
+    // Update config
+    const config = loadConfig(mainRoot);
+    const laneConfig = config.lanes.find((l) => l.name === oldName);
+    if (laneConfig) {
+        laneConfig.name = newName;
+        laneConfig.path = newPath;
+        saveConfig(mainRoot, config);
+    }
+    return { success: true, newPath };
 }
 /**
  * Smart lane command - switches to existing lane, or creates new one

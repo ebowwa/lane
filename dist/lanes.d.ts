@@ -90,6 +90,17 @@ export interface SyncResult {
 export declare function syncLane(laneName?: string, options?: {
     cwd?: string;
 }): Promise<SyncResult>;
+export interface RenameLaneResult {
+    success: boolean;
+    newPath?: string;
+    error?: string;
+}
+/**
+ * Rename a lane
+ */
+export declare function renameLane(oldName: string, newName: string, options?: {
+    cwd?: string;
+}): Promise<RenameLaneResult>;
 export interface SmartLaneResult {
     success: boolean;
     action: "switched" | "created" | "none";
