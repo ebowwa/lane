@@ -391,6 +391,24 @@ export async function createLane(
   const lanePath = getLanePath(mainRoot, laneName);
   const branchName = options.branch || laneName;
 
+  // Lane creation uses 4 config settings:
+  //
+  // 1. copyMode: "worktree" | "full"
+  //    - worktree: Uses git worktree (shares .git objects, lightweight)
+  //    - full: Complete rsync copy (isolated but uses more disk space)
+  //
+  // 2. skipBuildArtifacts: boolean (applies to BOTH modes)
+  //    - full mode: Excludes dist/, node_modules/.cache/ from rsync
+  //    - worktree mode: Excludes those patterns when copying untracked files
+  //
+  // 3. symlinkDeps: boolean (applies to BOTH modes)
+  //    - After lane creation, symlinks node_modules from main repo
+  //    - Saves 500MB-2GB per lane
+  //
+  // 4. autoInstall: boolean (applies to BOTH modes)
+  //    - If symlinkDeps fails or is disabled, runs package install
+  //    - Uses detected package manager (bun, npm, pnpm, yarn, etc.)
+
   // Check if lane already exists
   if (existsSync(lanePath)) {
     return {
