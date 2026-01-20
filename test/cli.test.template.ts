@@ -27,7 +27,7 @@ describe('CLI: [command-name]', () => {
   });
 
   test('should display help', async () => {
-    const result = Bun.spawn(['bun', './src/cli.ts', 'help'], {
+    const result = Bun.spawn(['bun', './src/cli/index.ts', 'help'], {
       cwd: tempDir,
       stdout: 'pipe',
       stderr: 'pipe',
@@ -41,7 +41,7 @@ describe('CLI: [command-name]', () => {
   });
 
   test('should handle missing arguments gracefully', async () => {
-    const result = Bun.spawn(['bun', './src/cli.ts', 'missing-command'], {
+    const result = Bun.spawn(['bun', './src/cli/index.ts', 'missing-command'], {
       cwd: tempDir,
       stdout: 'pipe',
       stderr: 'pipe',
@@ -56,7 +56,7 @@ describe('CLI: [command-name]', () => {
 
   test('should execute command successfully', async () => {
     // Example test for a successful command execution
-    const result = Bun.spawn(['bun', './src/cli.ts', 'command-name', 'arg1'], {
+    const result = Bun.spawn(['bun', './src/cli/index.ts', 'command-name', 'arg1'], {
       cwd: tempDir,
       stdout: 'pipe',
       stderr: 'pipe',

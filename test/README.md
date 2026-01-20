@@ -109,7 +109,7 @@ test('should create a new lane', async () => {
   const tempDir = testUtils.createTempDir('create-lane');
   try {
     // Run your CLI command
-    const result = Bun.spawn(['bun', './src/cli.ts', 'create', 'test'], {
+    const result = Bun.spawn(['bun', './src/cli/index.ts', 'create', 'test'], {
       cwd: tempDir,
       stdout: 'pipe',
     });
