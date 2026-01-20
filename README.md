@@ -24,14 +24,17 @@ Or use `bunx lane` to run without installing.
 ## Usage
 
 ```bash
-lane a                  # Create or switch to lane "a"
+lane new <name>         # Create a new lane
+lane switch <name>      # Switch to existing lane
+lane checkout <branch>  # Smart: find lane by branch, or create one
 lane                    # Interactive picker
 lane -                  # Previous lane
 lane main               # Back to main repo
-lane rename b           # Rename current lane to "b"
-lane remove a           # Delete lane "a"
-lane checkout feature/x # Find lane by branch, or create one
-lane sync               # Copy .env files from main
+lane rename <new-name>  # Rename current lane
+lane remove <name>      # Delete a lane
+lane sync [name]        # Copy .env files from main
+lane list               # List all lanes
+lane status             # Show current lane info
 lane config             # Settings
 ```
 
