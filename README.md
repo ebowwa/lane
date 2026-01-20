@@ -69,6 +69,17 @@ myapp-lane-b/        ~10MB (node_modules is symlinked)
 
 Disable symlink mode in `lane config` if you need independent dependencies.
 
+### Config Files vs Dependencies
+
+Lane handles **dependencies** and **config files** differently:
+
+| Type | Behavior | Examples |
+|------|----------|----------|
+| **Dependencies** | Symlinked (shared) | `node_modules`, `.venv`, `vendor`, `target`, `.next` |
+| **Config Files** | Copied (independent) | `.env`, `.env.*`, `*.local`, `.secret*` |
+
+**Why?** Each lane may need different environment variables, but dependencies are the same. Modifying `.env` in one lane won't affect others. Use `lane sync` to copy updated config files from main.
+
 ### Worktree mode
 
 Worktree mode uses git worktrees under the hood, but copies untracked files (like `.env`) automatically. Faster than full copy, but has the usual worktree quirks (can't checkout same branch twice, etc).
