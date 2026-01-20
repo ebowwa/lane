@@ -26,7 +26,6 @@ import { LaneManager } from "./ui/LaneManager.js";
 import { Settings } from "./ui/Settings.js";
 import { CheckoutSelector } from "./ui/CheckoutSelector.js";
 import { branchExists } from "./git.js";
-import { execSync } from "child_process";
 
 const program = new Command();
 
@@ -67,8 +66,8 @@ program
 program
   .command("switch <name>")
   .description("Switch to a lane")
-  .action((name: string) => {
-    const lane = getLaneForSwitch(name);
+  .action(async (name: string) => {
+    const lane = await getLaneForSwitch(name);
 
     if (!lane) {
       console.error(chalk.red(`Error: Lane "${name}" not found`));
@@ -85,8 +84,8 @@ program
   .alias("ls")
   .description("List all lanes")
   .option("-i, --interactive", "Show interactive UI")
-  .action((options: { interactive?: boolean }) => {
-    const lanes = listAllLanes();
+  .action(async (options: { interactive?: boolean }) => {
+    const lanes = await listAllLanes();
 
     if (lanes.length === 0) {
       console.log(chalk.yellow("No lanes found. Create one with: lane new <name>"));
@@ -152,13 +151,11 @@ program
   .description("Set up shell integration for automatic cd")
   .option("--print", "Print the shell function instead of installing")
   .action(async (options: { print?: boolean }) => {
-    const { existsSync, readFileSync, writeFileSync, mkdirSync } = await import("fs");
-    const { homedir } = await import("os");
-    const pathModule = await import("path");
+    const pathModule = await import("node:path");
 
     const shell = process.env.SHELL || "";
     const isFish = shell.includes("fish");
-    const home = homedir();
+    const home = process.env.HOME || process.env.USERPROFILE || "";
 
     const MARKER = "# >>> lane shell integration >>>";
     const MARKER_END = "# <<< lane shell integration <<<";
@@ -220,12 +217,10 @@ ${MARKER_END}`;
     // Determine config file
     let configFile: string;
     if (isFish) {
-      configFile = pathModule.join(home, ".config", "fish", "config.fish");
+      const fishConfigDir = pathModule.join(home, ".config", "fish");
       // Ensure fish config dir exists
-      const fishConfigDir = pathModule.dirname(configFile);
-      if (!existsSync(fishConfigDir)) {
-        mkdirSync(fishConfigDir, { recursive: true });
-      }
+      await Bun.write(`${fishConfigDir}/.gitkeep`, "", { createPath: true });
+      configFile = pathModule.join(fishConfigDir, "config.fish");
     } else if (shell.includes("zsh")) {
       configFile = pathModule.join(home, ".zshrc");
     } else {
@@ -234,8 +229,9 @@ ${MARKER_END}`;
 
     // Check if already installed
     let existingContent = "";
-    if (existsSync(configFile)) {
-      existingContent = readFileSync(configFile, "utf-8");
+    const configFileHandle = Bun.file(configFile);
+    if (await configFileHandle.exists()) {
+      existingContent = await configFileHandle.text();
       if (existingContent.includes(MARKER)) {
         // Remove old version
         const regex = new RegExp(
@@ -248,7 +244,7 @@ ${MARKER_END}`;
 
     // Append new function
     const newContent = existingContent.trimEnd() + "\n\n" + shellFunc + "\n";
-    writeFileSync(configFile, newContent);
+    await Bun.write(configFile, newContent);
 
     console.log(chalk.green(`✓ Shell integration installed to ${configFile}`));
     console.log();
@@ -260,14 +256,14 @@ ${MARKER_END}`;
 program
   .command("status")
   .description("Show current lane status")
-  .action(() => {
-    const mainRoot = getMainRepoRoot();
+  .action(async () => {
+    const mainRoot = await getMainRepoRoot();
     if (!mainRoot) {
       console.error(chalk.red("Not in a git repository"));
       process.exit(1);
     }
 
-    const lanes = listAllLanes();
+    const lanes = await listAllLanes();
     const current = lanes.find((l) => l.isCurrent);
 
     if (current) {
@@ -311,7 +307,7 @@ program
   .command("rename <new-name>")
   .description("Rename the current lane")
   .action(async (newName: string) => {
-    const lanes = listAllLanes();
+    const lanes = await listAllLanes();
     const current = lanes.find((l) => l.isCurrent);
 
     if (!current) {
@@ -335,7 +331,7 @@ program
       process.exit(1);
     }
 
-    const mainRoot = getMainRepoRoot();
+    const mainRoot = await getMainRepoRoot();
     if (!mainRoot) {
       console.error(chalk.red("Not in a git repository"));
       process.exit(1);
@@ -360,7 +356,7 @@ program
   .alias("co")
   .description("Switch to lane with branch, or choose where to checkout")
   .action(async (branchName: string) => {
-    const mainRoot = getMainRepoRoot();
+    const mainRoot = await getMainRepoRoot();
     const currentPath = process.cwd();
 
     if (!mainRoot) {
@@ -369,19 +365,19 @@ program
     }
 
     // Check if any lane has this branch currently checked out
-    const laneWithBranch = findLaneByBranch(branchName);
+    const laneWithBranch = await findLaneByBranch(branchName);
 
     if (laneWithBranch) {
       // Found a lane with this branch - switch to it
       console.log(chalk.green(`Switching to lane "${laneWithBranch.name}" (branch: ${branchName})`));
-      recordLaneSwitch(mainRoot, currentPath);
+      await recordLaneSwitch(mainRoot, currentPath);
       console.log(`${CD_PREFIX}${laneWithBranch.path}`);
       return;
     }
 
     // No lane has this branch - show options
-    const lanes = listAllLanes();
-    const doesBranchExist = branchExists(mainRoot, branchName);
+    const lanes = await listAllLanes();
+    const doesBranchExist = await branchExists(mainRoot, branchName);
 
     let selectedAction: any = null;
 
@@ -412,21 +408,30 @@ program
       }
 
       console.log(chalk.green(`Lane "${branchName}" created!`));
-      recordLaneSwitch(mainRoot, currentPath);
+      await recordLaneSwitch(mainRoot, currentPath);
       console.log(`${CD_PREFIX}${result.lane?.path}`);
     } else if (selectedAction.type === "checkout-in-lane") {
       // Checkout branch in existing lane
       const lane = selectedAction.lane;
       try {
         // Checkout the branch (create if doesn't exist)
-        if (doesBranchExist) {
-          execSync(`git checkout "${branchName}"`, { cwd: lane.path, encoding: "utf-8", stdio: "pipe" });
-        } else {
-          execSync(`git checkout -b "${branchName}"`, { cwd: lane.path, encoding: "utf-8", stdio: "pipe" });
+        const gitCmd = doesBranchExist
+          ? `git checkout "${branchName}"`
+          : `git checkout -b "${branchName}"`;
+
+        const proc = Bun.spawn(["sh", "-c", gitCmd], {
+          cwd: lane.path,
+          stdout: "pipe",
+          stderr: "pipe",
+        });
+        const exitCode = await proc.exited;
+        if (exitCode !== 0) {
+          const stderr = await new Response(proc.stderr).text();
+          throw new Error(stderr || "Git checkout failed");
         }
 
         console.log(chalk.green(`Checked out "${branchName}" in lane "${lane.name}"`));
-        recordLaneSwitch(mainRoot, currentPath);
+        await recordLaneSwitch(mainRoot, currentPath);
         console.log(`${CD_PREFIX}${lane.path}`);
       } catch (e: any) {
         console.error(chalk.red(`Error checking out branch: ${e.message}`));
@@ -441,7 +446,7 @@ program
   .alias("manage")
   .description("Interactive lane management")
   .action(async () => {
-    const lanes = listAllLanes();
+    const lanes = await listAllLanes();
 
     if (lanes.length === 0) {
       console.log(chalk.yellow("No lanes found. Create one with: lane <name>"));
@@ -454,10 +459,10 @@ program
         onAction: async (action, lane) => {
           if (action === "switch") {
             // Record current lane before switching
-            const mainRoot = getMainRepoRoot();
+            const mainRoot = await getMainRepoRoot();
             const currentLane = lanes.find((l) => l.isCurrent);
             if (mainRoot && currentLane) {
-              recordLaneSwitch(mainRoot, currentLane.path);
+              await recordLaneSwitch(mainRoot, currentLane.path);
             }
             console.log(`${CD_PREFIX}${lane.path}`);
           } else if (action === "delete") {
@@ -487,24 +492,24 @@ program
   .alias("settings")
   .description("Configure lane settings")
   .action(async () => {
-    const mainRoot = getMainRepoRoot();
+    const mainRoot = await getMainRepoRoot();
     if (!mainRoot) {
       console.error(chalk.red("Not in a git repository"));
       process.exit(1);
     }
 
-    const config = loadConfig(mainRoot);
+    const config = await loadConfig(mainRoot);
 
     const { waitUntilExit } = renderUI(
       React.createElement(Settings, {
         currentMode: config.settings.copyMode,
         autoInstall: config.settings.autoInstall,
         skipBuildArtifacts: config.settings.skipBuildArtifacts,
-        onSave: (settings) => {
+        onSave: async (settings) => {
           config.settings.copyMode = settings.copyMode;
           config.settings.autoInstall = settings.autoInstall;
           config.settings.skipBuildArtifacts = settings.skipBuildArtifacts;
-          saveConfig(mainRoot, config);
+          await saveConfig(mainRoot, config);
           console.error(chalk.green("✓ Settings saved"));
         },
       })
@@ -516,12 +521,12 @@ program
 program
   .argument("[name]", "Lane name to switch to or create (use '-' for previous)")
   .action(async (name: string | undefined) => {
-    const mainRoot = getMainRepoRoot();
+    const mainRoot = await getMainRepoRoot();
     const currentPath = process.cwd();
 
     // If no name provided, show interactive list
     if (!name) {
-      const lanes = listAllLanes();
+      const lanes = await listAllLanes();
 
       if (lanes.length === 0) {
         console.log(chalk.yellow("No lanes found. Create one with: lane <name>"));
@@ -538,7 +543,7 @@ program
           onSelect: async (lane, action) => {
             if (action === "switch") {
               if (mainRoot) {
-                recordLaneSwitch(mainRoot, currentPath);
+                await recordLaneSwitch(mainRoot, currentPath);
               }
               switchToPath = lane.path;
             } else if (action === "delete") {
@@ -577,14 +582,14 @@ program
         process.exit(1);
       }
 
-      const previousPath = getPreviousLane(mainRoot);
+      const previousPath = await getPreviousLane(mainRoot);
       if (!previousPath) {
         console.error(chalk.red("No previous lane to switch to"));
         process.exit(1);
       }
 
       // Record current before switching
-      recordLaneSwitch(mainRoot, currentPath);
+      await recordLaneSwitch(mainRoot, currentPath);
       console.log(`${CD_PREFIX}${previousPath}`);
       return;
     }
@@ -603,7 +608,7 @@ program
 
     // Record current lane before switching
     if (result.path && mainRoot) {
-      recordLaneSwitch(mainRoot, currentPath);
+      await recordLaneSwitch(mainRoot, currentPath);
     }
 
     // Output the cd command for shell function

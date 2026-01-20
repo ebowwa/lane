@@ -7,7 +7,7 @@
     "lane": "./lane"
   },
   "scripts": {
-    "build": "bun build ./src/cli.ts --outfile ./lane --compile --banner '#!/usr/bin/env bun'",
+    "build": "bun build ./src/cli.ts --outfile ./lane --compile --sourcemap --minify --banner '#!/usr/bin/env bun'",
     "dev": "bun --watch ./src/cli.ts",
     "start": "./lane",
     "prepare": "bun run build"
