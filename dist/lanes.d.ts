@@ -62,7 +62,7 @@ export declare function getLaneForSwitch(laneName: string, cwd?: string): {
     branch: string;
 } | null;
 /**
- * List all lanes including the main repo
+ * List all lanes including the main repo by scanning the filesystem
  */
 export declare function listAllLanes(cwd?: string): Array<{
     name: string;

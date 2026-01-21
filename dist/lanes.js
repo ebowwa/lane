@@ -2,7 +2,7 @@ import { execSync, spawn } from "child_process";
 import { existsSync, mkdirSync, copyFileSync, readdirSync, readFileSync, statSync, rmSync, writeFileSync, } from "fs";
 import path from "path";
 import { findGitRepo, getMainWorktree, isWorktree, getUntrackedFiles, createWorktree, branchExists, deleteBranch, getCurrentBranch, } from "./git.js";
-import { loadConfig, saveConfig, addLane, removeLane as removeLaneFromConfig, getLane, getAllLanes, BUILD_ARTIFACT_PATTERNS, } from "./config.js";
+import { loadConfig, saveConfig, addLane, removeLane as removeLaneFromConfig, getLane, BUILD_ARTIFACT_PATTERNS, } from "./config.js";
 /**
  * Get the main repo root, even if we're in a worktree or full-copy lane
  */
@@ -549,7 +549,7 @@ export function getLaneForSwitch(laneName, cwd = process.cwd()) {
     return null;
 }
 /**
- * List all lanes including the main repo
+ * List all lanes including the main repo by scanning the filesystem
  */
 export function listAllLanes(cwd = process.cwd()) {
     const mainRoot = getMainRepoRoot(cwd);
@@ -557,8 +557,9 @@ export function listAllLanes(cwd = process.cwd()) {
         return [];
     }
     const currentPath = findGitRepo(cwd)?.root || cwd;
-    const lanes = getAllLanes(mainRoot);
     const repo = findGitRepo(mainRoot);
+    const repoName = path.basename(mainRoot);
+    const parentDir = path.dirname(mainRoot);
     const result = [];
     // Add main repo
     if (repo) {
@@ -570,20 +571,29 @@ export function listAllLanes(cwd = process.cwd()) {
             isCurrent: currentPath === mainRoot,
         });
     }
-    // Add lanes - get ACTUAL current branch from each lane directory
-    for (const lane of lanes) {
-        // Get the actual current branch if the lane directory exists
-        const actualBranch = existsSync(lane.path)
-            ? getCurrentBranch(lane.path) || lane.branch
-            : lane.branch;
-        result.push({
-            name: lane.name,
-            path: lane.path,
-            branch: actualBranch,
-            isMain: false,
-            isCurrent: currentPath === lane.path,
-        });
+    // Scan parent directory for lane folders: {reponame}-lane-*
+    const lanePrefix = `${repoName}-lane-`;
+    try {
+        const entries = readdirSync(parentDir);
+        for (const entry of entries) {
+            if (entry.startsWith(lanePrefix)) {
+                const lanePath = path.join(parentDir, entry);
+                const laneName = entry.slice(lanePrefix.length);
+                // Check it's a directory with a .git
+                if (existsSync(path.join(lanePath, ".git"))) {
+                    const branch = getCurrentBranch(lanePath) || "unknown";
+                    result.push({
+                        name: laneName,
+                        path: lanePath,
+                        branch,
+                        isMain: false,
+                        isCurrent: currentPath === lanePath,
+                    });
+                }
+            }
+        }
     }
+    catch { }
     return result;
 }
 /**
