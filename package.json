@@ -1,10 +1,19 @@
 {
-  "name": "lane",
+  "name": "@ebowwa/lane",
   "version": "0.1.0",
   "description": "A simple alternative to git worktrees",
   "type": "module",
   "bin": {
     "lane": "./lane"
+  },
+  "files": [
+    "lane",
+    "lane.mjs",
+    "README.md",
+    "LLM.txt"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "bunx esbuild ./src/cli/index.ts --outfile=./lane.mjs --bundle --platform=node --format=esm --jsx=automatic --jsx-import-source=react && cat > ./lane << 'EOF'\n#!/usr/bin/env bun\nimport(\"./lane.mjs\");\nEOF\nchmod +x ./lane",

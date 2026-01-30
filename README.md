@@ -13,13 +13,20 @@ Creates a copy of your repo at `my-app-lane-a/` and cd's into it.
 ## Install
 
 ```bash
+# npm
+npm install -g @ebowwa/lane
+
+# bun
+bun add -g @ebowwa/lane
+
+# or from source
 git clone https://github.com/benhylak/lane.git
 bun install -g ./lane
 lane init-shell
 source ~/.zshrc
 ```
 
-Or use `bunx lane` to run without installing.
+Or use `bunx @ebowwa/lane` to run without installing.
 
 ## Usage
 
