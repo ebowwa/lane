@@ -4,11 +4,10 @@
   "description": "A simple alternative to git worktrees",
   "type": "module",
   "bin": {
-    "lane": "./lane"
+    "lane": "./dist/cli/index.js"
   },
   "files": [
-    "lane",
-    "lane.mjs",
+    "dist/",
     "README.md",
     "LLM.txt"
   ],
@@ -16,9 +15,9 @@
     "access": "public"
   },
   "scripts": {
-    "build": "bunx esbuild ./src/cli/index.ts --outfile=./lane.mjs --bundle --platform=node --format=esm --jsx=automatic --jsx-import-source=react && cat > ./lane << 'EOF'\n#!/usr/bin/env bun\nimport(\"./lane.mjs\");\nEOF\nchmod +x ./lane",
+    "build": "tsc && chmod +x ./dist/cli/index.js",
     "dev": "bun --watch ./src/cli/index.ts",
-    "start": "./lane",
+    "start": "node ./dist/cli/index.js",
     "prepare": "bun run build",
     "test": "bun test",
     "test:watch": "bun test --watch"
